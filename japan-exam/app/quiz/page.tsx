@@ -429,18 +429,8 @@ export default function QuizPage() {
 
   return (
     <div className="px-4 py-6 space-y-4">
-      {/* Header with back / progress / close */}
+      {/* Header with progress / close */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={handleBack}
-          disabled={currentIdx === 0}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-25"
-          title="ย้อนกลับ"
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
         <div className="flex-1">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
             <span>ข้อ {currentIdx + 1} / {questions.length}</span>
@@ -507,6 +497,14 @@ export default function QuizPage() {
           />
           <div className="flex gap-2">
             <button
+              onClick={handleBack}
+              disabled={currentIdx === 0}
+              className="px-3 py-3 border border-gray-200 text-gray-500 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-25 transition-colors btn-press"
+              title="ย้อนกลับ"
+            >
+              ← ย้อน
+            </button>
+            <button
               onClick={handleSkip}
               className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors btn-press"
             >
@@ -535,12 +533,22 @@ export default function QuizPage() {
               {choice}
             </button>
           ))}
-          <button
-            onClick={handleSkip}
-            className="w-full text-center py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            ข้ามข้อนี้ →
-          </button>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleBack}
+              disabled={currentIdx === 0}
+              className="px-3 py-3 border border-gray-200 text-gray-500 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-25 transition-colors btn-press"
+              title="ย้อนกลับ"
+            >
+              ← ย้อน
+            </button>
+            <button
+              onClick={handleSkip}
+              className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors btn-press"
+            >
+              ข้าม →
+            </button>
+          </div>
         </div>
       )}
 
@@ -575,6 +583,14 @@ export default function QuizPage() {
                 ลองใหม่
               </button>
             )}
+            <button
+              onClick={handleBack}
+              disabled={currentIdx === 0}
+              className="px-3 py-3 border border-gray-200 text-gray-500 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-25 transition-colors btn-press"
+              title="ย้อนกลับ"
+            >
+              ← ย้อน
+            </button>
             <button
               onClick={goNext}
               className={`font-semibold py-3 rounded-xl transition-colors btn-press ${isCorrect ? "flex-1 bg-green-500 text-white hover:bg-green-600" : "flex-[2] bg-red-600 text-white hover:bg-red-700"}`}
