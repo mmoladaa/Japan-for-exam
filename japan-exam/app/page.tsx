@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSRS } from "@/hooks/useSRS";
 import { vocabulary, greetings } from "@/data/vocabulary";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const allIds = vocabulary.map((v) => v.id);
 
@@ -44,20 +44,11 @@ const studyModes = [
 
 export default function Home() {
   const { getStats, isLoaded } = useSRS();
-  const [stats, setStats] = useState({
-    mastered: 0,
-    learning: 0,
-    notStarted: 0,
-    due: 0,
-    total: 0,
-  });
+  const stats = useMemo(
+    () => isLoaded ? getStats(allIds) : { mastered: 0, learning: 0, notStarted: 0, due: 0, total: 0 },
+    [isLoaded, getStats]
+  );
   const [greetingIdx, setGreetingIdx] = useState(0);
-
-  useEffect(() => {
-    if (isLoaded) {
-      setStats(getStats(allIds));
-    }
-  }, [isLoaded, getStats]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -66,7 +57,6 @@ export default function Home() {
     return () => clearInterval(t);
   }, []);
 
-  const masteredPct = stats.total > 0 ? Math.round((stats.mastered / stats.total) * 100) : 0;
   const learnedPct = stats.total > 0 ? Math.round(((stats.mastered + stats.learning) / stats.total) * 100) : 0;
 
   return (
@@ -95,7 +85,7 @@ export default function Home() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-gray-800">ความก้าวหน้ารวม</h2>
-            <span className="text-red-600 font-bold text-lg">{masteredPct}%</span>
+            <span className="text-red-600 font-bold text-lg">{learnedPct}%</span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-3 mb-2">
             <div

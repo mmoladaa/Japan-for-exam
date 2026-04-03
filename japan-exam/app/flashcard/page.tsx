@@ -1,40 +1,72 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { vocabulary, VocabItem } from "@/data/vocabulary";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { vocabulary, numberVocab, VocabItem } from "@/data/vocabulary";
 import { useSRS } from "@/hooks/useSRS";
 
 type Direction = "jp-th" | "th-jp";
 type ChapterFilter = 0 | 1 | 2 | 3;
 
 export default function FlashcardPage() {
-  const { getCard, updateCard, getDueCards, isLoaded } = useSRS();
+  const { getCard, updateCard, getDueCards, getStats, isLoaded } = useSRS();
+  const srsRef = useRef({ getDueCards, getCard });
+
+  useLayoutEffect(() => {
+    srsRef.current = { getDueCards, getCard };
+  }, [getDueCards, getCard]);
   const [direction, setDirection] = useState<Direction>("jp-th");
   const [chapterFilter, setChapterFilter] = useState<ChapterFilter>(0);
+  const [showNumbers, setShowNumbers] = useState(false);
+  const [excludedIds] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("japan-vocab-exclude");
+        if (saved) return new Set<string>(JSON.parse(saved));
+      } catch { /* ignore */ }
+    }
+    return new Set<string>();
+  });
   const [flipped, setFlipped] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [deck, setDeck] = useState<VocabItem[]>([]);
   const [sessionStats, setSessionStats] = useState({ correct: 0, wrong: 0 });
+  const [sessionCorrect, setSessionCorrect] = useState<Record<string, number>>({});
   const [showComplete, setShowComplete] = useState(false);
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const buildDeck = useCallback(() => {
-    let filtered = chapterFilter === 0 ? vocabulary : vocabulary.filter((v) => v.chapter === chapterFilter);
-    const due = getDueCards(filtered.map((v) => v.id));
-    const duePriority = filtered.filter((v) => due.includes(v.id));
-    const rest = filtered.filter((v) => !due.includes(v.id));
-    // Shuffle
-    const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
-    return [...shuffle(duePriority), ...shuffle(rest)];
-  }, [chapterFilter, getDueCards]);
+  const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
+
+  const buildDeck = useCallback((): VocabItem[] => {
+    const { getDueCards: dueFn, getCard: cardFn } = srsRef.current;
+    let base = chapterFilter === 0 ? vocabulary : vocabulary.filter((v) => v.chapter === chapterFilter);
+    if (showNumbers) base = [...base, ...numberVocab];
+    base = base.filter((v) => !excludedIds.has(v.id));
+
+    const due = dueFn(base.map((v) => v.id));
+    const duePriority = base.filter((v) => due.includes(v.id));
+    const rest = base.filter((v) => !due.includes(v.id));
+
+    // Split rest into learning (1-3) and mastered (4-5)
+    const learningItems = rest.filter((v) => {
+      const l = cardFn(v.id).level;
+      return l > 0 && l < 4;
+    });
+    const masteredItems = rest.filter((v) => cardFn(v.id).level >= 4);
+    // Include only 20% of mastered for occasional review
+    const masteredSample = shuffle(masteredItems).slice(0, Math.ceil(masteredItems.length * 0.2));
+
+    return [...shuffle(duePriority), ...shuffle(learningItems), ...masteredSample];
+  }, [chapterFilter, showNumbers, excludedIds]);
 
   useEffect(() => {
-    if (isLoaded) {
+    if (!isLoaded) return;
+    queueMicrotask(() => {
       setDeck(buildDeck());
       setCurrentIndex(0);
       setFlipped(false);
       setShowComplete(false);
-    }
+      setSessionCorrect({});
+    });
   }, [isLoaded, buildDeck]);
 
   const current = deck[currentIndex];
@@ -45,21 +77,52 @@ export default function FlashcardPage() {
 
   const handleAnswer = (correct: boolean) => {
     if (!current) return;
-    updateCard(current.id, correct);
-    setSessionStats((s) => ({
-      correct: s.correct + (correct ? 1 : 0),
-      wrong: s.wrong + (correct ? 0 : 1),
-    }));
-    setSlideDir(correct ? "left" : "right");
-    setTimeout(() => {
-      setFlipped(false);
-      if (currentIndex + 1 >= deck.length) {
-        setShowComplete(true);
-      } else {
-        setCurrentIndex((i) => i + 1);
-      }
-      setSlideDir(null);
-    }, 300);
+    updateCard(current.id, correct, true); // cram=true for in-session intervals
+
+    if (correct) {
+      const hits = (sessionCorrect[current.id] ?? 0) + 1;
+      setSessionCorrect((prev) => ({ ...prev, [current.id]: hits }));
+      setSessionStats((s) => ({ ...s, correct: s.correct + 1 }));
+      setSlideDir("left");
+
+      setTimeout(() => {
+        setFlipped(false);
+        setSlideDir(null);
+        if (hits === 1) {
+          // First correct: re-queue at end for confirmation
+          setDeck((prev) => {
+            const next = prev.filter((_, i) => i !== currentIndex);
+            return [...next, current];
+          });
+          // currentIndex stays (next card slides in)
+          if (currentIndex >= deck.length - 1) {
+            setCurrentIndex(0);
+          }
+        } else {
+          // Second correct: graduated, advance normally
+          if (currentIndex + 1 >= deck.length) {
+            setShowComplete(true);
+          } else {
+            setCurrentIndex((i) => i + 1);
+          }
+        }
+      }, 300);
+    } else {
+      setSessionStats((s) => ({ ...s, wrong: s.wrong + 1 }));
+      setSlideDir("right");
+      setTimeout(() => {
+        setFlipped(false);
+        setSlideDir(null);
+        // Re-queue at end
+        setDeck((prev) => {
+          const next = prev.filter((_, i) => i !== currentIndex);
+          return [...next, current];
+        });
+        if (currentIndex >= deck.length - 1) {
+          setCurrentIndex(0);
+        }
+      }, 300);
+    }
   };
 
   const handleRestart = () => {
@@ -68,9 +131,15 @@ export default function FlashcardPage() {
     setFlipped(false);
     setShowComplete(false);
     setSessionStats({ correct: 0, wrong: 0 });
+    setSessionCorrect({});
   };
 
-  const progress = deck.length > 0 ? ((currentIndex) / deck.length) * 100 : 0;
+  const progress = deck.length > 0 ? ((currentIndex + 1) / deck.length) * 100 : 0;
+
+  const allIds = (chapterFilter === 0 ? vocabulary : vocabulary.filter((v) => v.chapter === chapterFilter))
+    .concat(showNumbers ? numberVocab : [])
+    .map((v) => v.id);
+  const stats = isLoaded ? getStats(allIds) : null;
 
   if (!isLoaded) {
     return (
@@ -142,12 +211,33 @@ export default function FlashcardPage() {
             </button>
           ))}
         </div>
+        {/* Numbers toggle */}
+        <button
+          onClick={() => setShowNumbers((v) => !v)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${showNumbers ? "bg-amber-500 text-white border-amber-500" : "bg-gray-100 text-gray-500 border-transparent"}`}
+        >
+          🔢 ตัวเลข
+        </button>
       </div>
+      {excludedIds.size > 0 && (
+        <p className="text-xs text-gray-400 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-lg">
+          ⚠️ ตัดออก {excludedIds.size} คำ · จัดการที่หน้า <span className="text-amber-600 font-medium">ความก้าวหน้า → เลือกคำ ☑</span>
+        </p>
+      )}
+
+      {/* Stats row */}
+      {stats && (
+        <div className="flex gap-2 text-xs">
+          <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded-full">{stats.notStarted} ยังไม่เรียน</span>
+          <span className="bg-amber-50 text-amber-600 px-2 py-1 rounded-full">{stats.learning} กำลังเรียน</span>
+          <span className="bg-green-50 text-green-600 px-2 py-1 rounded-full">{stats.mastered} จำได้แล้ว</span>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div>
         <div className="flex justify-between text-xs text-gray-400 mb-1">
-          <span>{currentIndex} / {deck.length}</span>
+          <span>{currentIndex + 1} / {deck.length}</span>
           <span>✅ {sessionStats.correct} &nbsp; ❌ {sessionStats.wrong}</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-2">
@@ -178,10 +268,13 @@ export default function FlashcardPage() {
                   />
                 ))}
               </div>
-              <div className="absolute top-3 left-3">
+              <div className="absolute top-3 left-3 flex gap-1">
                 <span className="text-xs text-gray-300 bg-gray-50 px-2 py-0.5 rounded-full">
-                  บท {current.chapter}
+                  {current.chapter === 0 ? "ตัวเลข" : `บท ${current.chapter}`}
                 </span>
+                {(sessionCorrect[current.id] ?? 0) >= 1 && (
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">✓ confirm</span>
+                )}
               </div>
 
               {direction === "jp-th" ? (

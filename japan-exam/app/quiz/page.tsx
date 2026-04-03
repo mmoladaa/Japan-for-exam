@@ -37,6 +37,24 @@ export default function QuizPage() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [result, setResult] = useState<QuizResult>({ correct: 0, wrong: 0, total: 0, missed: [] });
   const [chapterFilter, setChapterFilter] = useState<0 | 1 | 2 | 3>(0);
+  const [grammarDone, setGrammarDone] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("japan-grammar-progress");
+        if (saved) return JSON.parse(saved).done ?? 0;
+      } catch { /* ignore */ }
+    }
+    return 0;
+  });
+  const [grammarBest, setGrammarBest] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("japan-grammar-progress");
+        if (saved) return JSON.parse(saved).best ?? 0;
+      } catch { /* ignore */ }
+    }
+    return 0;
+  });
 
   const startQuiz = useCallback(
     (newMode: QuizMode) => {
@@ -123,6 +141,18 @@ export default function QuizPage() {
 
   const handleNext = () => {
     if (currentIdx + 1 >= questions.length) {
+      // Save grammar progress if in grammar mode
+      if (mode === "grammar") {
+        const finalCorrect = result.correct + (selected === currentQ?.answer ? 0 : 0); // already counted
+        const pct = result.total > 0 ? Math.round((result.correct / result.total) * 100) : 0;
+        const newDone = grammarDone + 1;
+        const newBest = Math.max(grammarBest, pct);
+        setGrammarDone(newDone);
+        setGrammarBest(newBest);
+        try {
+          localStorage.setItem("japan-grammar-progress", JSON.stringify({ done: newDone, best: newBest }));
+        } catch { /* ignore */ }
+      }
       setMode("complete");
     } else {
       setCurrentIdx((i) => i + 1);
@@ -153,6 +183,7 @@ export default function QuizPage() {
         desc: "เติม particle หรือคำที่หายไปในประโยค",
         icon: "✏️",
         count: sentenceQuestions.filter((q) => q.type === "fill-blank").length,
+        badge: grammarDone > 0 ? `ทำแล้ว ${grammarDone} ครั้ง · Best ${grammarBest}%` : null,
       },
       {
         key: "conjunction" as QuizMode,
@@ -231,6 +262,9 @@ export default function QuizPage() {
                   <span className="font-jp text-xs text-gray-400">{m.titleJP}</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">{m.desc}</p>
+                {"badge" in m && m.badge && (
+                  <span className="inline-block mt-1 text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">{m.badge}</span>
+                )}
               </div>
               <span className="text-xs text-gray-300 bg-gray-50 px-2 py-1 rounded-full">{m.count} ข้อ</span>
             </button>
@@ -302,7 +336,7 @@ export default function QuizPage() {
   }
 
   // ── Quiz ───────────────────────────────────────────────
-  const progress = questions.length > 0 ? ((currentIdx) / questions.length) * 100 : 0;
+  const progress = questions.length > 0 ? ((currentIdx + 1) / questions.length) * 100 : 0;
   const isCorrect = selected === currentQ?.answer;
   const isFillBlank = currentQ?.type === "fill-blank" || currentQ?.type === "translate";
 
