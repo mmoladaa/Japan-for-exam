@@ -655,11 +655,6 @@ export default function QuizPage() {
           {currentQ.questionThai && (
             <p className="text-sm text-gray-500 mt-1">{currentQ.questionThai}</p>
           )}
-          {currentQ.hint && !showAnswer && (
-            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mt-3">
-              💡 {currentQ.hint}
-            </p>
-          )}
           {mode === "vocab-type" && !showAnswer && (
             <div className="text-xs text-blue-600 bg-blue-50 rounded-lg px-2 py-1 mt-3 space-y-0.5">
               <p>📖 <strong>ひらがな (Hiragana)</strong>: Native Japanese words, grammar particles, verbs</p>
