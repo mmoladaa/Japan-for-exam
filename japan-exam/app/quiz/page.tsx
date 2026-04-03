@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   sentenceQuestions,
   conjunctionQuestions,
@@ -10,20 +10,16 @@ import {
   translateThJpQuestions,
   QuizQuestion,
 } from "@/data/quizData";
-import { numberPractice } from "@/data/vocabulary";
+import { numberPractice, vocabulary } from "@/data/vocabulary";
 
-type QuizMode = "menu" | "vocab-mc" | "grammar" | "conjunction" | "expression" | "number" | "sentence-qa" | "counter" | "translate-th-jp" | "complete";
+type QuizMode =
+  | "menu" | "vocab-mc" | "grammar" | "conjunction" | "expression"
+  | "number" | "sentence-qa" | "counter" | "translate-th-jp" | "vocab-type"
+  | "complete";
 
-interface QuizResult {
-  correct: number;
-  wrong: number;
-  total: number;
-  missed: QuizQuestion[];
-}
+interface AnswerRecord { answer: string; correct: boolean; }
 
-function shuffle<T>(arr: T[]): T[] {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
+function shuffle<T>(arr: T[]): T[] { return [...arr].sort(() => Math.random() - 0.5); }
 
 function buildChoices(question: QuizQuestion, allAnswers: string[]): string[] {
   if (question.choices) return shuffle(question.choices);
@@ -31,14 +27,21 @@ function buildChoices(question: QuizQuestion, allAnswers: string[]): string[] {
   return shuffle([question.answer, ...wrong]);
 }
 
+// Normalize romaji for flexible comparison (douzo == dōzo, spaces ignored, etc.)
+const normalizeRomaji = (s: string) =>
+  s.toLowerCase()
+    .replace(/[\[\]~\-\s]/g, "")
+    .replace(/uu/g, "u")
+    .replace(/oo/g, "o")
+    .replace(/ou/g, "o");
+
 export default function QuizPage() {
   const [mode, setMode] = useState<QuizMode>("menu");
+  const [lastMode, setLastMode] = useState<QuizMode>("vocab-mc");
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [result, setResult] = useState<QuizResult>({ correct: 0, wrong: 0, total: 0, missed: [] });
+  const [perQuestionResult, setPerQuestionResult] = useState<Record<number, AnswerRecord>>({});
   const [chapterFilter, setChapterFilter] = useState<0 | 1 | 2 | 3>(0);
   const [grammarDone, setGrammarDone] = useState<number>(() => {
     if (typeof window !== "undefined") {
@@ -95,7 +98,7 @@ export default function QuizPage() {
           translateThJpQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
         );
       } else if (newMode === "number") {
-        const numQs: QuizQuestion[] = shuffle(numberPractice)
+        qs = shuffle(numberPractice)
           .slice(0, 10)
           .map((n, i) => ({
             id: `num-${i}`,
@@ -110,83 +113,127 @@ export default function QuizPage() {
                 .map((x) => x.thai),
             ],
           }));
-        qs = numQs;
+      } else if (newMode === "vocab-type") {
+        const pool = shuffle(
+          vocabulary.filter(
+            (v) =>
+              (chapterFilter === 0 || v.chapter === chapterFilter) &&
+              v.category !== "สำนวน"
+          )
+        ).slice(0, 15);
+        qs = pool.map((v, i) => {
+          const cleanReading = v.reading
+            .split(" / ")[0]
+            .replace(/\[.*?\]/g, "")
+            .replace(/~/g, "")
+            .trim()
+            .toLowerCase();
+          return {
+            id: `vt-${i}`,
+            type: "fill-blank" as const,
+            chapter: v.chapter,
+            question: v.thai.split(",")[0].trim(),
+            questionThai: `บท ${v.chapter} · ${v.category}`,
+            answer: cleanReading,
+            hint: v.japanese + (v.kanji && v.kanji !== v.japanese ? ` (${v.kanji})` : ""),
+            explanation: `${v.japanese} = ${v.reading}`,
+          };
+        });
       }
       if (qs.length === 0) return;
       setQuestions(qs);
       setCurrentIdx(0);
-      setSelected(null);
       setInputValue("");
-      setShowAnswer(false);
-      setResult({ correct: 0, wrong: 0, total: qs.length, missed: [] });
+      setPerQuestionResult({});
+      setLastMode(newMode);
       setMode(newMode);
     },
     [chapterFilter]
   );
 
+  // ── Derived state ──────────────────────────────────────
   const currentQ = questions[currentIdx];
+  const currentAnswer = perQuestionResult[currentIdx];
+  const showAnswer = !!currentAnswer;
+  const selected = currentAnswer?.answer ?? null;
+  const isCorrect = currentAnswer?.correct ?? false;
+  const isFillBlank = currentQ?.type === "fill-blank" || currentQ?.type === "translate";
+  const allAnswers = questions.map((q) => q.answer);
+  const choices = currentQ ? buildChoices(currentQ, allAnswers) : [];
 
+  const correctCount = useMemo(
+    () => Object.values(perQuestionResult).filter((r) => r.correct).length,
+    [perQuestionResult]
+  );
+  const wrongCount = useMemo(
+    () => Object.values(perQuestionResult).filter((r) => !r.correct).length,
+    [perQuestionResult]
+  );
+
+  // ── Handlers ───────────────────────────────────────────
   const handleSelect = (choice: string) => {
-    if (selected) return;
-    setSelected(choice);
-    setShowAnswer(true);
-    const isCorrect = choice === currentQ.answer;
-    setResult((r) => ({
-      ...r,
-      correct: r.correct + (isCorrect ? 1 : 0),
-      wrong: r.wrong + (isCorrect ? 0 : 1),
-      missed: isCorrect ? r.missed : [...r.missed, currentQ],
-    }));
+    if (showAnswer) return;
+    const isCorr = choice === currentQ.answer;
+    setPerQuestionResult((prev) => ({ ...prev, [currentIdx]: { answer: choice, correct: isCorr } }));
   };
 
   const handleFillSubmit = () => {
     if (!inputValue.trim()) return;
-    const isCorrect =
-      inputValue.trim() === currentQ.answer ||
-      inputValue.trim().replace(/\s/g, "") === currentQ.answer.replace(/\s/g, "");
-    setSelected(inputValue.trim());
-    setShowAnswer(true);
-    setResult((r) => ({
-      ...r,
-      correct: r.correct + (isCorrect ? 1 : 0),
-      wrong: r.wrong + (isCorrect ? 0 : 1),
-      missed: isCorrect ? r.missed : [...r.missed, currentQ],
-    }));
+    const val = inputValue.trim();
+    const isCorr =
+      val === currentQ.answer ||
+      val.replace(/\s/g, "") === currentQ.answer.replace(/\s/g, "") ||
+      (mode === "vocab-type" && normalizeRomaji(val) === normalizeRomaji(currentQ.answer));
+    setPerQuestionResult((prev) => ({ ...prev, [currentIdx]: { answer: val, correct: isCorr } }));
   };
 
-  const handleNext = () => {
+  const goNext = () => {
     if (currentIdx + 1 >= questions.length) {
-      // Save grammar progress if in grammar mode
       if (mode === "grammar") {
-        const pct = result.total > 0 ? Math.round((result.correct / result.total) * 100) : 0;
+        const pct = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
         const newDone = grammarDone + 1;
         const newBest = Math.max(grammarBest, pct);
         setGrammarDone(newDone);
         setGrammarBest(newBest);
-        try {
-          localStorage.setItem("japan-grammar-progress", JSON.stringify({ done: newDone, best: newBest }));
-        } catch { /* ignore */ }
+        try { localStorage.setItem("japan-grammar-progress", JSON.stringify({ done: newDone, best: newBest })); } catch { /* ignore */ }
       }
       setMode("complete");
     } else {
       setCurrentIdx((i) => i + 1);
-      setSelected(null);
       setInputValue("");
-      setShowAnswer(false);
     }
   };
 
-  const allAnswers = questions.map((q) => q.answer);
-  const choices = currentQ ? buildChoices(currentQ, allAnswers) : [];
+  const handleBack = () => {
+    if (currentIdx > 0) { setCurrentIdx((i) => i - 1); setInputValue(""); }
+  };
+
+  const handleSkip = () => {
+    if (currentIdx + 1 >= questions.length) setMode("complete");
+    else { setCurrentIdx((i) => i + 1); setInputValue(""); }
+  };
+
+  const clearAnswer = () => {
+    setPerQuestionResult((prev) => { const next = { ...prev }; delete next[currentIdx]; return next; });
+    setInputValue("");
+  };
 
   // ── Menu ──────────────────────────────────────────────
   if (mode === "menu") {
     const modes = [
       {
+        key: "vocab-type" as QuizMode,
+        title: "พิมพ์ Romaji",
+        titleJP: "ローマ字入力",
+        desc: "เห็นความหมายไทย → พิมพ์ romaji",
+        icon: "⌨️",
+        count: vocabulary.filter((v) => chapterFilter === 0 || v.chapter === chapterFilter).length,
+      },
+      {
         key: "vocab-mc" as QuizMode,
         title: "เลือกตอบ ประโยค",
         titleJP: "文の選択問題",
-        desc: "เติม particle / เลือก คำตอบที่ถูก",
+        desc: "เติม particle / เลือกคำตอบที่ถูก",
         icon: "📝",
         count: sentenceQuestions.filter((q) => q.type === "multiple-choice").length,
       },
@@ -228,7 +275,7 @@ export default function QuizPage() {
         title: "ตอบคำถามประโยคสมบูรณ์",
         titleJP: "完全文で答える",
         desc: "เลือกประโยคคำตอบที่ถูกต้องสมบูรณ์",
-        icon: "💬",
+        icon: "🗣️",
         count: sentenceQAQuestions.length,
       },
       {
@@ -314,7 +361,10 @@ export default function QuizPage() {
 
   // ── Complete ───────────────────────────────────────────
   if (mode === "complete") {
-    const pct = result.total > 0 ? Math.round((result.correct / result.total) * 100) : 0;
+    const total = questions.length;
+    const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const skippedCount = total - Object.keys(perQuestionResult).length;
+    const missedQs = questions.filter((q, i) => !perQuestionResult[i]?.correct);
     return (
       <div className="px-4 py-6 space-y-6">
         <div className="text-center">
@@ -323,7 +373,8 @@ export default function QuizPage() {
             {pct >= 80 ? "เยี่ยมมาก!" : pct >= 60 ? "ทำได้ดี!" : "ฝึกต่อนะ!"}
           </h2>
           <p className="text-gray-500 mt-1">
-            ถูก {result.correct} / {result.total} ข้อ ({pct}%)
+            ถูก {correctCount} / {total} ข้อ ({pct}%)
+            {skippedCount > 0 && <span className="text-gray-400 text-sm"> · ข้าม {skippedCount} ข้อ</span>}
           </p>
         </div>
 
@@ -336,13 +387,13 @@ export default function QuizPage() {
         </div>
 
         {/* Missed questions */}
-        {result.missed.length > 0 && (
+        {missedQs.length > 0 && (
           <div>
-            <p className="font-semibold text-gray-700 mb-2">📌 ข้อที่ผิด (ต้องทบทวน)</p>
+            <p className="font-semibold text-gray-700 mb-2">📌 ข้อที่ผิด / ข้าม</p>
             <div className="space-y-2">
-              {result.missed.map((q) => (
+              {missedQs.map((q) => (
                 <div key={q.id} className="bg-red-50 border border-red-200 rounded-xl p-3">
-                  <p className="font-jp text-sm text-gray-800">{q.question}</p>
+                  <p className={`text-sm text-gray-800 ${lastMode !== "vocab-type" ? "font-jp" : ""}`}>{q.question}</p>
                   <p className="text-sm font-semibold text-red-600 mt-1">
                     เฉลย: <span className="font-jp">{q.answer}</span>
                   </p>
@@ -363,7 +414,7 @@ export default function QuizPage() {
             เมนู
           </button>
           <button
-            onClick={() => startQuiz(mode === "complete" ? "vocab-mc" : mode)}
+            onClick={() => startQuiz(lastMode)}
             className="flex-1 bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors btn-press"
           >
             ทำอีกครั้ง
@@ -375,14 +426,17 @@ export default function QuizPage() {
 
   // ── Quiz ───────────────────────────────────────────────
   const progress = questions.length > 0 ? ((currentIdx + 1) / questions.length) * 100 : 0;
-  const isCorrect = selected === currentQ?.answer;
-  const isFillBlank = currentQ?.type === "fill-blank" || currentQ?.type === "translate";
 
   return (
     <div className="px-4 py-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => setMode("menu")} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+      {/* Header with back / progress / close */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleBack}
+          disabled={currentIdx === 0}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-25"
+          title="ย้อนกลับ"
+        >
           <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -390,12 +444,21 @@ export default function QuizPage() {
         <div className="flex-1">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
             <span>ข้อ {currentIdx + 1} / {questions.length}</span>
-            <span>✅ {result.correct} &nbsp; ❌ {result.wrong}</span>
+            <span>✅ {correctCount} &nbsp; ❌ {wrongCount}</span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-2">
             <div className="bg-red-500 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
         </div>
+        <button
+          onClick={() => setMode("menu")}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          title="ออก"
+        >
+          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Question card */}
@@ -409,36 +472,54 @@ export default function QuizPage() {
               {currentQ.type === "multiple-choice" ? "เลือกตอบ" :
                currentQ.type === "fill-blank" ? "เติมคำ" : "แปล"}
             </span>
+            {mode === "vocab-type" && (
+              <span className="text-xs bg-indigo-50 text-indigo-500 px-2 py-0.5 rounded-full font-jp">ローマ字</span>
+            )}
           </div>
-          <p className="font-jp text-xl text-gray-900 leading-relaxed mb-1">{currentQ.question}</p>
+          <p className={`${mode === "vocab-type" ? "text-2xl font-semibold" : "font-jp text-xl"} text-gray-900 leading-relaxed`}>
+            {currentQ.question}
+          </p>
           {currentQ.questionThai && (
             <p className="text-sm text-gray-500 mt-1">{currentQ.questionThai}</p>
           )}
           {currentQ.hint && !showAnswer && (
-            <p className="text-xs text-gray-400 mt-2">💡 {currentQ.hint}</p>
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mt-3">
+              💡 {currentQ.hint}
+            </p>
           )}
         </div>
       )}
 
-      {/* Fill blank input */}
+      {/* Fill-blank input */}
       {isFillBlank && !showAnswer && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleFillSubmit()}
-            placeholder="พิมพ์คำตอบ..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 font-jp text-gray-900 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            placeholder={mode === "vocab-type" ? "พิมพ์ romaji เช่น gakusei…" : "พิมพ์คำตอบ…"}
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
             autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
           />
-          <button
-            onClick={handleFillSubmit}
-            disabled={!inputValue.trim()}
-            className="w-full bg-red-600 text-white py-3 rounded-xl font-semibold disabled:opacity-40 hover:bg-red-700 transition-colors btn-press"
-          >
-            ตรวจคำตอบ
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSkip}
+              className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors btn-press"
+            >
+              ข้าม →
+            </button>
+            <button
+              onClick={handleFillSubmit}
+              disabled={!inputValue.trim()}
+              className="flex-[2] bg-red-600 text-white py-3 rounded-xl font-semibold disabled:opacity-40 hover:bg-red-700 transition-colors btn-press"
+            >
+              ตรวจคำตอบ
+            </button>
+          </div>
         </div>
       )}
 
@@ -454,36 +535,53 @@ export default function QuizPage() {
               {choice}
             </button>
           ))}
+          <button
+            onClick={handleSkip}
+            className="w-full text-center py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            ข้ามข้อนี้ →
+          </button>
         </div>
       )}
 
       {/* Answer feedback */}
       {showAnswer && currentQ && (
         <div className={`rounded-2xl p-4 space-y-3 bounce-in ${isCorrect ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-2xl">{isCorrect ? "✅" : "❌"}</span>
             <p className={`font-semibold ${isCorrect ? "text-green-700" : "text-red-700"}`}>
               {isCorrect ? "ถูกต้อง!" : "ผิด"}
             </p>
+            {!isCorrect && selected && (
+              <p className="text-sm text-gray-500">คุณตอบ: <span className="font-jp">{selected}</span></p>
+            )}
           </div>
           {!isCorrect && (
-            <div>
-              <p className="text-sm text-gray-600">
-                คำตอบที่ถูก: <span className="font-jp font-bold text-red-700">{currentQ.answer}</span>
-              </p>
-            </div>
+            <p className="text-sm text-gray-600">
+              คำตอบที่ถูก: <span className="font-jp font-bold text-red-700">{currentQ.answer}</span>
+            </p>
           )}
           {currentQ.explanation && (
-            <p className="text-sm text-gray-500 border-t border-gray-200 pt-2 mt-2">
+            <p className="text-sm text-gray-500 border-t border-gray-200 pt-2">
               💡 {currentQ.explanation}
             </p>
           )}
-          <button
-            onClick={handleNext}
-            className={`w-full py-3 rounded-xl font-semibold transition-colors btn-press ${isCorrect ? "bg-green-500 text-white hover:bg-green-600" : "bg-red-600 text-white hover:bg-red-700"}`}
-          >
-            {currentIdx + 1 >= questions.length ? "ดูผลลัพธ์" : "ข้อถัดไป →"}
-          </button>
+          <div className="flex gap-2">
+            {!isCorrect && (
+              <button
+                onClick={clearAnswer}
+                className="flex-1 border border-red-200 text-red-500 py-3 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors btn-press"
+              >
+                ลองใหม่
+              </button>
+            )}
+            <button
+              onClick={goNext}
+              className={`font-semibold py-3 rounded-xl transition-colors btn-press ${isCorrect ? "flex-1 bg-green-500 text-white hover:bg-green-600" : "flex-[2] bg-red-600 text-white hover:bg-red-700"}`}
+            >
+              {currentIdx + 1 >= questions.length ? "ดูผลลัพธ์" : "ข้อถัดไป →"}
+            </button>
+          </div>
         </div>
       )}
     </div>
