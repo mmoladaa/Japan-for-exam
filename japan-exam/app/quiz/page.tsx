@@ -65,6 +65,78 @@ const isRomajiMatch = (userInput: string, japaneseAnswer: string): boolean => {
   return false;
 };
 
+// Convert romanji to katakana for display
+const romajiToKatakana = (romaji: string): string => {
+  const map: { [key: string]: string } = {
+    // Vowels
+    'a': 'ア', 'i': 'イ', 'u': 'ウ', 'e': 'エ', 'o': 'オ',
+    // K-group
+    'ka': 'カ', 'ki': 'キ', 'ku': 'ク', 'ke': 'ケ', 'ko': 'コ',
+    'kya': 'キャ', 'kyi': 'キィ', 'kyu': 'キュ', 'kye': 'キェ', 'kyo': 'キョ',
+    // G-group
+    'ga': 'ガ', 'gi': 'ギ', 'gu': 'グ', 'ge': 'ゲ', 'go': 'ゴ',
+    'gya': 'ギャ', 'gyi': 'ギィ', 'gyu': 'ギュ', 'gye': 'ギェ', 'gyo': 'ギョ',
+    // S-group (both シ and シ variants)
+    'sa': 'サ', 'si': 'シ', 'su': 'ス', 'se': 'セ', 'so': 'ソ',
+    'shi': 'シ', 'sya': 'シャ', 'syi': 'シィ', 'syu': 'シュ', 'sye': 'シェ', 'syo': 'ショ',
+    // Z-group
+    'za': 'ザ', 'zi': 'ジ', 'zu': 'ズ', 'ze': 'ゼ', 'zo': 'ゾ',
+    'ja': 'ジャ', 'jyi': 'ジィ', 'ju': 'ジュ', 'jye': 'ジェ', 'jo': 'ジョ',
+    // T-group
+    'ta': 'タ', 'ti': 'チ', 'tu': 'ツ', 'te': 'テ', 'to': 'ト',
+    'chi': 'チ', 'tsu': 'ツ', 'tya': 'チャ', 'tyi': 'チィ', 'tyu': 'チュ', 'tye': 'チェ', 'tyo': 'チョ',
+    // D-group
+    'da': 'ダ', 'di': 'ヂ', 'du': 'ヅ', 'de': 'デ', 'do': 'ド',
+    'dya': 'ヂャ', 'dyi': 'ヂィ', 'dyu': 'ヂュ', 'dye': 'ヂェ', 'dyo': 'ヂョ',
+    // N-group
+    'na': 'ナ', 'ni': 'ニ', 'nu': 'ヌ', 'ne': 'ネ', 'no': 'ノ',
+    'nya': 'ニャ', 'nyi': 'ニィ', 'nyu': 'ニュ', 'nye': 'ニェ', 'nyo': 'ニョ',
+    // H-group
+    'ha': 'ハ', 'hi': 'ヒ', 'hu': 'フ', 'he': 'ヘ', 'ho': 'ホ',
+    'hya': 'ヒャ', 'hyi': 'ヒィ', 'hyu': 'ヒュ', 'hye': 'ヒェ', 'hyo': 'ヒョ',
+    'fa': 'ファ', 'fi': 'フィ', 'fe': 'フェ', 'fo': 'フォ', 'fu': 'フ',
+    // B-group
+    'ba': 'バ', 'bi': 'ビ', 'bu': 'ブ', 'be': 'ベ', 'bo': 'ボ',
+    'bya': 'ビャ', 'byi': 'ビィ', 'byu': 'ビュ', 'bye': 'ビェ', 'byo': 'ビョ',
+    // P-group
+    'pa': 'パ', 'pi': 'ピ', 'pu': 'プ', 'pe': 'ペ', 'po': 'ポ',
+    'pya': 'ピャ', 'pyi': 'ピィ', 'pyu': 'ピュ', 'pye': 'ピェ', 'pyo': 'ピョ',
+    // M-group
+    'ma': 'マ', 'mi': 'ミ', 'mu': 'ム', 'me': 'メ', 'mo': 'モ',
+    'mya': 'ミャ', 'myi': 'ミィ', 'myu': 'ミュ', 'mye': 'ミェ', 'myo': 'ミョ',
+    // Y-group
+    'ya': 'ヤ', 'yi': 'イ', 'yu': 'ユ', 'yo': 'ヨ',
+    // R-group
+    'ra': 'ラ', 'ri': 'リ', 'ru': 'ル', 're': 'レ', 'ro': 'ロ',
+    'rya': 'リャ', 'ryi': 'リィ', 'ryu': 'リュ', 'rye': 'リェ', 'ryo': 'リョ',
+    // W-group
+    'wa': 'ワ', 'wi': 'ウィ', 'we': 'ウェ', 'wo': 'ヲ', 'n': 'ン',
+  };
+
+  let result = '';
+  let i = 0;
+  const lower = romaji.toLowerCase();
+
+  while (i < lower.length) {
+    let matched = false;
+    for (let len = 3; len >= 1; len--) {
+      const substr = lower.substring(i, i + len);
+      if (map[substr]) {
+        result += map[substr];
+        i += len;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      result += lower[i];
+      i++;
+    }
+  }
+
+  return result;
+};
+
 // Convert romanji to hiragana for display
 const romajiToHiragana = (romaji: string): string => {
   const map: { [key: string]: string } = {
@@ -588,6 +660,12 @@ export default function QuizPage() {
               💡 {currentQ.hint}
             </p>
           )}
+          {mode === "vocab-type" && !showAnswer && (
+            <div className="text-xs text-blue-600 bg-blue-50 rounded-lg px-2 py-1 mt-3 space-y-0.5">
+              <p>📖 <strong>ひらがな (Hiragana)</strong>: Native Japanese words, grammar particles, verbs</p>
+              <p>🌏 <strong>カタカナ (Katakana)</strong>: Foreign words (เช่น アメリカ, エンジニア, ペン)</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -608,8 +686,9 @@ export default function QuizPage() {
               spellCheck={false}
             />
             {mode === "vocab-type" && inputValue.trim() && (
-              <div className="text-sm text-gray-500 mt-2 px-1">
-                📝 Hiragana: <span className="font-jp text-lg text-gray-700 font-medium">{romajiToHiragana(inputValue)}</span>
+              <div className="text-sm text-gray-500 mt-2 px-1 space-y-1">
+                <div>📝 ひらがな: <span className="font-jp text-lg text-gray-700 font-medium">{romajiToHiragana(inputValue)}</span></div>
+                <div>📝 カタカナ: <span className="font-jp text-lg text-blue-700 font-medium">{romajiToKatakana(inputValue)}</span></div>
               </div>
             )}
           </div>
@@ -679,9 +758,10 @@ export default function QuizPage() {
               {isCorrect ? "ถูกต้อง!" : "ผิด"}
             </p>
             {!isCorrect && selected && mode === "vocab-type" && (
-              <div className="text-sm text-gray-500 w-full">
+              <div className="text-sm text-gray-500 w-full space-y-1">
                 <p>คุณตอบ: <span className="font-jp">{selected}</span></p>
-                <p className="text-xs text-gray-400 mt-1">= <span className="font-jp text-gray-600">{romajiToHiragana(selected)}</span></p>
+                <p className="text-xs text-gray-400">ひらがな = <span className="font-jp text-gray-600">{romajiToHiragana(selected)}</span></p>
+                <p className="text-xs text-gray-400">カタカナ = <span className="font-jp text-blue-600">{romajiToKatakana(selected)}</span></p>
               </div>
             )}
             {!isCorrect && selected && mode !== "vocab-type" && (
@@ -689,10 +769,13 @@ export default function QuizPage() {
             )}
           </div>
           {!isCorrect && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 space-y-1">
               <p>คำตอบที่ถูก: <span className="font-jp font-bold text-red-700">{currentQ.answer}</span></p>
               {mode === "vocab-type" && (
-                <p className="text-xs text-gray-500 mt-1">ซึ่ง = <span className="font-jp text-gray-700">{romajiToHiragana(currentQ.answer)}</span></p>
+                <>
+                  <p className="text-xs text-gray-500">ひらがな = <span className="font-jp text-gray-700 font-medium">{romajiToHiragana(currentQ.answer)}</span></p>
+                  <p className="text-xs text-gray-500">カタカナ = <span className="font-jp text-blue-700 font-medium">{romajiToKatakana(currentQ.answer)}</span></p>
+                </>
               )}
             </div>
           )}
