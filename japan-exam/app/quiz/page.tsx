@@ -65,6 +65,79 @@ const isRomajiMatch = (userInput: string, japaneseAnswer: string): boolean => {
   return false;
 };
 
+// Convert romanji to hiragana for display
+const romajiToHiragana = (romaji: string): string => {
+  const map: { [key: string]: string } = {
+    // Vowels
+    'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お',
+    // K-group
+    'ka': 'か', 'ki': 'き', 'ku': 'く', 'ke': 'け', 'ko': 'こ',
+    'kya': 'きゃ', 'kyi': 'きぃ', 'kyu': 'きゅ', 'kye': 'きぇ', 'kyo': 'きょ',
+    // G-group
+    'ga': 'が', 'gi': 'ぎ', 'gu': 'ぐ', 'ge': 'げ', 'go': 'ご',
+    'gya': 'ぎゃ', 'gyi': 'ぎぃ', 'gyu': 'ぎゅ', 'gye': 'ぎぇ', 'gyo': 'ぎょ',
+    // S-group (both し and し variants)
+    'sa': 'さ', 'si': 'し', 'su': 'す', 'se': 'せ', 'so': 'そ',
+    'shi': 'し', 'sya': 'しゃ', 'syi': 'しぃ', 'syu': 'しゅ', 'sye': 'しぇ', 'syo': 'しょ',
+    // Z-group
+    'za': 'ざ', 'zi': 'じ', 'zu': 'ず', 'ze': 'ぜ', 'zo': 'ぞ',
+    'ja': 'じゃ', 'jyi': 'じぃ', 'ju': 'じゅ', 'jye': 'じぇ', 'jo': 'じょ',
+    // T-group
+    'ta': 'た', 'ti': 'ち', 'tu': 'つ', 'te': 'て', 'to': 'と',
+    'chi': 'ち', 'tsu': 'つ', 'tya': 'ちゃ', 'tyi': 'ちぃ', 'tyu': 'ちゅ', 'tye': 'ちぇ', 'tyo': 'ちょ',
+    // D-group
+    'da': 'だ', 'di': 'ぢ', 'du': 'づ', 'de': 'で', 'do': 'ど',
+    'dya': 'ぢゃ', 'dyi': 'ぢぃ', 'dyu': 'ぢゅ', 'dye': 'ぢぇ', 'dyo': 'ぢょ',
+    // N-group
+    'na': 'な', 'ni': 'に', 'nu': 'ぬ', 'ne': 'ね', 'no': 'の',
+    'nya': 'にゃ', 'nyi': 'にぃ', 'nyu': 'にゅ', 'nye': 'にぇ', 'nyo': 'にょ',
+    // H-group
+    'ha': 'は', 'hi': 'ひ', 'hu': 'ふ', 'he': 'へ', 'ho': 'ほ',
+    'hya': 'ひゃ', 'hyi': 'ひぃ', 'hyu': 'ひゅ', 'hye': 'ひぇ', 'hyo': 'ひょ',
+    'fa': 'ふぁ', 'fi': 'ふぃ', 'fe': 'ふぇ', 'fo': 'ふぉ', 'fu': 'ふ',
+    // B-group
+    'ba': 'ば', 'bi': 'び', 'bu': 'ぶ', 'be': 'べ', 'bo': 'ぼ',
+    'bya': 'びゃ', 'byi': 'びぃ', 'byu': 'びゅ', 'bye': 'びぇ', 'byo': 'びょ',
+    // P-group
+    'pa': 'ぱ', 'pi': 'ぴ', 'pu': 'ぷ', 'pe': 'ぺ', 'po': 'ぽ',
+    'pya': 'ぴゃ', 'pyi': 'ぴぃ', 'pyu': 'ぴゅ', 'pye': 'ぴぇ', 'pyo': 'ぴょ',
+    // M-group
+    'ma': 'ま', 'mi': 'み', 'mu': 'む', 'me': 'め', 'mo': 'も',
+    'mya': 'みゃ', 'myi': 'みぃ', 'myu': 'みゅ', 'mye': 'みぇ', 'myo': 'みょ',
+    // Y-group
+    'ya': 'や', 'yi': 'い', 'yu': 'ゆ', 'yo': 'よ',
+    // R-group
+    'ra': 'ら', 'ri': 'り', 'ru': 'る', 're': 'れ', 'ro': 'ろ',
+    'rya': 'りゃ', 'ryi': 'りぃ', 'ryu': 'りゅ', 'rye': 'りぇ', 'ryo': 'りょ',
+    // W-group
+    'wa': 'わ', 'wi': 'ゐ', 'we': 'ゑ', 'wo': 'を', 'n': 'ん',
+  };
+
+  let result = '';
+  let i = 0;
+  const lower = romaji.toLowerCase();
+
+  while (i < lower.length) {
+    let matched = false;
+    // Try 3-character combinations first
+    for (let len = 3; len >= 1; len--) {
+      const substr = lower.substring(i, i + len);
+      if (map[substr]) {
+        result += map[substr];
+        i += len;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      result += lower[i];
+      i++;
+    }
+  }
+
+  return result;
+};
+
 export default function QuizPage() {
   const [mode, setMode] = useState<QuizMode>("menu");
   const [lastMode, setLastMode] = useState<QuizMode>("vocab-mc");
@@ -521,18 +594,25 @@ export default function QuizPage() {
       {/* Fill-blank input */}
       {isFillBlank && !showAnswer && (
         <div className="space-y-2">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleFillSubmit()}
-            placeholder={mode === "vocab-type" ? "พิมพ์ romaji เช่น gakusei…" : "พิมพ์คำตอบ…"}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-            autoFocus
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-          />
+          <div>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleFillSubmit()}
+              placeholder={mode === "vocab-type" ? "พิมพ์ romaji เช่น gakusei…" : "พิมพ์คำตอบ…"}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            {mode === "vocab-type" && inputValue.trim() && (
+              <div className="text-sm text-gray-500 mt-2 px-1">
+                📝 Hiragana: <span className="font-jp text-lg text-gray-700 font-medium">{romajiToHiragana(inputValue)}</span>
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleBack}
@@ -598,14 +678,23 @@ export default function QuizPage() {
             <p className={`font-semibold ${isCorrect ? "text-green-700" : "text-red-700"}`}>
               {isCorrect ? "ถูกต้อง!" : "ผิด"}
             </p>
-            {!isCorrect && selected && (
+            {!isCorrect && selected && mode === "vocab-type" && (
+              <div className="text-sm text-gray-500 w-full">
+                <p>คุณตอบ: <span className="font-jp">{selected}</span></p>
+                <p className="text-xs text-gray-400 mt-1">= <span className="font-jp text-gray-600">{romajiToHiragana(selected)}</span></p>
+              </div>
+            )}
+            {!isCorrect && selected && mode !== "vocab-type" && (
               <p className="text-sm text-gray-500">คุณตอบ: <span className="font-jp">{selected}</span></p>
             )}
           </div>
           {!isCorrect && (
-            <p className="text-sm text-gray-600">
-              คำตอบที่ถูก: <span className="font-jp font-bold text-red-700">{currentQ.answer}</span>
-            </p>
+            <div className="text-sm text-gray-600">
+              <p>คำตอบที่ถูก: <span className="font-jp font-bold text-red-700">{currentQ.answer}</span></p>
+              {mode === "vocab-type" && (
+                <p className="text-xs text-gray-500 mt-1">ซึ่ง = <span className="font-jp text-gray-700">{romajiToHiragana(currentQ.answer)}</span></p>
+              )}
+            </div>
           )}
           {currentQ.explanation && (
             <p className="text-sm text-gray-500 border-t border-gray-200 pt-2">
