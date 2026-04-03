@@ -5,11 +5,14 @@ import {
   conjunctionQuestions,
   expressionQuestions,
   grammarPatterns,
+  sentenceQAQuestions,
+  counterQuestions,
+  translateThJpQuestions,
   QuizQuestion,
 } from "@/data/quizData";
 import { numberPractice } from "@/data/vocabulary";
 
-type QuizMode = "menu" | "vocab-mc" | "grammar" | "conjunction" | "expression" | "number" | "complete";
+type QuizMode = "menu" | "vocab-mc" | "grammar" | "conjunction" | "expression" | "number" | "sentence-qa" | "counter" | "translate-th-jp" | "complete";
 
 interface QuizResult {
   correct: number;
@@ -78,6 +81,18 @@ export default function QuizPage() {
       } else if (newMode === "expression") {
         qs = shuffle(
           expressionQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
+        );
+      } else if (newMode === "sentence-qa") {
+        qs = shuffle(
+          sentenceQAQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
+        );
+      } else if (newMode === "counter") {
+        qs = shuffle(
+          counterQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
+        );
+      } else if (newMode === "translate-th-jp") {
+        qs = shuffle(
+          translateThJpQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
         );
       } else if (newMode === "number") {
         const numQs: QuizQuestion[] = shuffle(numberPractice)
@@ -207,6 +222,30 @@ export default function QuizPage() {
         desc: "ฝึกอ่านตัวเลขและราคาสินค้าภาษาญี่ปุ่น",
         icon: "🔢",
         count: numberPractice.length,
+      },
+      {
+        key: "sentence-qa" as QuizMode,
+        title: "ตอบคำถามประโยคสมบูรณ์",
+        titleJP: "完全文で答える",
+        desc: "เลือกประโยคคำตอบที่ถูกต้องสมบูรณ์",
+        icon: "💬",
+        count: sentenceQAQuestions.length,
+      },
+      {
+        key: "counter" as QuizMode,
+        title: "ชั้น · อายุ · เงิน",
+        titleJP: "助数詞",
+        desc: "ฝึกนับชั้น (かい) อายุ (さい) และราคา (えん)",
+        icon: "🔢",
+        count: counterQuestions.length,
+      },
+      {
+        key: "translate-th-jp" as QuizMode,
+        title: "แปล ไทย → ญี่ปุ่น",
+        titleJP: "タイ語→日本語",
+        desc: "เลือกประโยคภาษาญี่ปุ่นที่ตรงกับความหมาย",
+        icon: "🔄",
+        count: translateThJpQuestions.length,
       },
     ];
 
