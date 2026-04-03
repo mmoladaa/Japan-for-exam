@@ -154,7 +154,7 @@ export default function ProgressPage() {
         <h2 className="font-semibold text-gray-800 mb-3">แยกตามบท</h2>
         <div className="space-y-3">
           {[1, 2, 3].map((ch) => {
-            const cs = chapterStats[ch];
+            const cs = chapterStats[ch as keyof typeof chapterStats];
             if (!cs) return null;
             const pct = cs.total > 0 ? Math.round((cs.mastered / cs.total) * 100) : 0;
             const ci = chapterInfo[ch];
