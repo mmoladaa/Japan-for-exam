@@ -8,6 +8,11 @@ import {
   sentenceQAQuestions,
   counterQuestions,
   translateThJpQuestions,
+  additionalSentenceQuestions,
+  additionalConjunctionQuestions,
+  additionalExpressionQuestions,
+  additionalNumberQuestions,
+  additionalSentenceQAQuestions,
   QuizQuestion,
 } from "@/data/quizData";
 import { numberPractice, vocabulary } from "@/data/vocabulary";
@@ -27,13 +32,38 @@ function buildChoices(question: QuizQuestion, allAnswers: string[]): string[] {
   return shuffle([question.answer, ...wrong]);
 }
 
-// Normalize romaji for flexible comparison (douzo == dōzo, spaces ignored, etc.)
-const normalizeRomaji = (s: string) =>
-  s.toLowerCase()
+// Normalize romaji for flexible comparison with multiple variations support
+const normalizeRomaji = (s: string) => {
+  const normalized = s.toLowerCase()
     .replace(/[\[\]~\-\s]/g, "")
+    .replace(/ā|あー/g, "a")
+    .replace(/ī|いー/g, "i")
+    .replace(/ū|う/g, "u")
+    .replace(/ē|えー/g, "e")
+    .replace(/ō|おー/g, "o")
+    .replace(/ch/g, "ti")
+    .replace(/shi/g, "si")
+    .replace(/tsu/g, "tu")
+    .replace(/fu/g, "hu")
     .replace(/uu/g, "u")
     .replace(/oo/g, "o")
     .replace(/ou/g, "o");
+  return normalized;
+};
+
+// Check if romanji input matches Japanese answer with multiple variation tolerance
+const isRomajiMatch = (userInput: string, japaneseAnswer: string): boolean => {
+  const normalized = normalizeRomaji(userInput);
+  const answerNorm = normalizeRomaji(japaneseAnswer);
+
+  // Exact match after normalization
+  if (normalized === answerNorm) return true;
+
+  // Check if input is a substring (for partial answers)
+  if (answerNorm.includes(normalized) && normalized.length >= 3) return true;
+
+  return false;
+};
 
 export default function QuizPage() {
   const [mode, setMode] = useState<QuizMode>("menu");
@@ -67,27 +97,27 @@ export default function QuizPage() {
       let qs: QuizQuestion[] = [];
       if (newMode === "vocab-mc") {
         qs = shuffle(
-          sentenceQuestions.filter(
+          [...sentenceQuestions, ...additionalSentenceQuestions].filter(
             (q) => q.type === "multiple-choice" && (chapterFilter === 0 || q.chapter === chapterFilter)
           )
-        ).slice(0, 10);
+        ).slice(0, 20);
       } else if (newMode === "grammar") {
         qs = shuffle(
-          sentenceQuestions.filter(
+          [...sentenceQuestions, ...additionalSentenceQuestions].filter(
             (q) => q.type === "fill-blank" && (chapterFilter === 0 || q.chapter === chapterFilter)
           )
-        ).slice(0, 8);
+        ).slice(0, 15);
       } else if (newMode === "conjunction") {
         qs = shuffle(
-          conjunctionQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
+          [...conjunctionQuestions, ...additionalConjunctionQuestions].filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
         );
       } else if (newMode === "expression") {
         qs = shuffle(
-          expressionQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
+          [...expressionQuestions, ...additionalExpressionQuestions].filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
         );
       } else if (newMode === "sentence-qa") {
         qs = shuffle(
-          sentenceQAQuestions.filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
+          [...sentenceQAQuestions, ...additionalSentenceQAQuestions].filter((q) => chapterFilter === 0 || q.chapter === chapterFilter)
         );
       } else if (newMode === "counter") {
         qs = shuffle(
@@ -180,10 +210,18 @@ export default function QuizPage() {
   const handleFillSubmit = () => {
     if (!inputValue.trim()) return;
     const val = inputValue.trim();
-    const isCorr =
-      val === currentQ.answer ||
-      val.replace(/\s/g, "") === currentQ.answer.replace(/\s/g, "") ||
-      (mode === "vocab-type" && normalizeRomaji(val) === normalizeRomaji(currentQ.answer));
+    let isCorr = false;
+
+    if (mode === "vocab-type") {
+      // Romanji input - use flexible matching
+      isCorr = isRomajiMatch(val, currentQ.answer);
+    } else {
+      // Japanese input - exact match or spaces ignored
+      isCorr =
+        val === currentQ.answer ||
+        val.replace(/\s/g, "") === currentQ.answer.replace(/\s/g, "");
+    }
+
     setPerQuestionResult((prev) => ({ ...prev, [currentIdx]: { answer: val, correct: isCorr } }));
   };
 
