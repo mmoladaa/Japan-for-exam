@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
 import { vocabulary, numberVocab, VocabItem } from "@/data/vocabulary";
 import { useSRS } from "@/hooks/useSRS";
 
@@ -15,8 +15,10 @@ export default function FlashcardPage() {
   }, [getDueCards, getCard]);
   const [direction, setDirection] = useState<Direction>("jp-th");
   const [chapterFilter, setChapterFilter] = useState<ChapterFilter>(0);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [showNumbers, setShowNumbers] = useState(false);
-  const [excludedIds] = useState<Set<string>>(() => {
+  const [showWordFilter, setShowWordFilter] = useState(false);
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("japan-vocab-exclude");
@@ -36,10 +38,34 @@ export default function FlashcardPage() {
 
   const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
 
+  const availableCategories = useMemo(() => {
+    const base = chapterFilter === 0 ? vocabulary : vocabulary.filter((v) => v.chapter === chapterFilter);
+    const cats = Array.from(new Set(base.map((v) => v.category)));
+    return cats.sort();
+  }, [chapterFilter]);
+
+  // Full list for word-picker (no exclusion filter applied so excluded words stay visible)
+  const wordPickerList = useMemo(() => {
+    let base = chapterFilter === 0 ? vocabulary : vocabulary.filter((v) => v.chapter === chapterFilter);
+    if (showNumbers) base = [...base, ...numberVocab];
+    if (categoryFilter) base = base.filter((v) => v.category === categoryFilter);
+    return base;
+  }, [chapterFilter, categoryFilter, showNumbers]);
+
+  const toggleExclude = useCallback((id: string) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem("japan-vocab-exclude", JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
   const buildDeck = useCallback((): VocabItem[] => {
     const { getDueCards: dueFn, getCard: cardFn } = srsRef.current;
     let base = chapterFilter === 0 ? vocabulary : vocabulary.filter((v) => v.chapter === chapterFilter);
     if (showNumbers) base = [...base, ...numberVocab];
+    if (categoryFilter) base = base.filter((v) => v.category === categoryFilter);
     base = base.filter((v) => !excludedIds.has(v.id));
 
     const due = dueFn(base.map((v) => v.id));
@@ -56,7 +82,7 @@ export default function FlashcardPage() {
     const masteredSample = shuffle(masteredItems).slice(0, Math.ceil(masteredItems.length * 0.2));
 
     return [...shuffle(duePriority), ...shuffle(learningItems), ...masteredSample];
-  }, [chapterFilter, showNumbers, excludedIds]);
+  }, [chapterFilter, categoryFilter, showNumbers, excludedIds]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -204,7 +230,7 @@ export default function FlashcardPage() {
           {([0, 1, 2, 3] as ChapterFilter[]).map((ch) => (
             <button
               key={ch}
-              onClick={() => setChapterFilter(ch)}
+              onClick={() => { setChapterFilter(ch); setCategoryFilter(null); }}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${chapterFilter === ch ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
             >
               {ch === 0 ? "ทั้งหมด" : `บท ${ch}`}
@@ -218,11 +244,72 @@ export default function FlashcardPage() {
         >
           🔢 ตัวเลข
         </button>
+        {/* Word picker toggle */}
+        <button
+          onClick={() => setShowWordFilter((v) => !v)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${showWordFilter ? "bg-indigo-500 text-white border-indigo-500" : "bg-gray-100 text-gray-500 border-transparent"}`}
+        >
+          ☑ เลือกคำ{excludedIds.size > 0 ? ` (−${excludedIds.size})` : ""}
+        </button>
       </div>
-      {excludedIds.size > 0 && (
-        <p className="text-xs text-gray-400 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-lg">
-          ⚠️ ตัดออก {excludedIds.size} คำ · จัดการที่หน้า <span className="text-amber-600 font-medium">ความก้าวหน้า → เลือกคำ ☑</span>
-        </p>
+      {/* Category filter chips */}
+      <div className="flex gap-1.5 flex-wrap">
+        <button
+          onClick={() => setCategoryFilter(null)}
+          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${!categoryFilter ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-500 border-gray-200"}`}
+        >
+          ทุกหมวด
+        </button>
+        {availableCategories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${categoryFilter === cat ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-500 border-gray-200"}`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Word picker panel */}
+      {showWordFilter && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <p className="text-sm font-semibold text-gray-800">
+              เลือกคำที่จะทบทวน
+              <span className="ml-2 text-xs font-normal text-gray-400">
+                {wordPickerList.length - wordPickerList.filter((v) => excludedIds.has(v.id)).length} / {wordPickerList.length} คำ
+              </span>
+            </p>
+            <button
+              onClick={() => {
+                setExcludedIds(new Set());
+                try { localStorage.removeItem("japan-vocab-exclude"); } catch { /* ignore */ }
+              }}
+              className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+            >
+              เลือกทั้งหมด
+            </button>
+          </div>
+          <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+            {wordPickerList.map((v) => {
+              const included = !excludedIds.has(v.id);
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => toggleExclude(v.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${included ? "hover:bg-gray-50" : "bg-gray-50 opacity-50"}`}
+                >
+                  <span className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${included ? "bg-indigo-500 border-indigo-500" : "border-gray-300"}`}>
+                    {included && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                  </span>
+                  <span className="font-jp text-sm text-gray-900 flex-1">{v.japanese}</span>
+                  <span className="text-xs text-gray-400 truncate max-w-[40%]">{v.thai.split(",")[0]}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Stats row */}
@@ -251,6 +338,7 @@ export default function FlashcardPage() {
       {/* Card */}
       {current && (
         <div
+          key={current.id}
           className={`card-flip cursor-pointer ${slideDir === "left" ? "opacity-0 -translate-x-8" : slideDir === "right" ? "opacity-0 translate-x-8" : ""} transition-all duration-300`}
           onClick={handleFlip}
           style={{ minHeight: 240 }}
