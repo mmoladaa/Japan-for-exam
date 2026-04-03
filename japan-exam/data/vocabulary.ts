@@ -29,10 +29,27 @@ export const vocabulary: VocabItem[] = [
   { id: "1-017", japanese: "なんさい", reading: "nansai", kanji: "何歳", thai: "อายุเท่าไร", chapter: 1, category: "คำถาม" },
   { id: "1-018", japanese: "はい", reading: "hai", thai: "ใช่, ครับ/ค่ะ", chapter: 1, category: "คำตอบรับ" },
   { id: "1-019", japanese: "いいえ", reading: "iie", thai: "ไม่ใช่, เปล่า", chapter: 1, category: "คำตอบรับ" },
-  { id: "1-020", japanese: "はじめまして", reading: "hajimemashite", thai: "ยินดีที่ได้รู้จัก (พูดครั้งแรกที่พบ)", chapter: 1, category: "สำนวน" },
-  { id: "1-021", japanese: "どうぞよろしく", reading: "douzo yoroshiku", thai: "ขอฝากเนื้อฝากตัวด้วย", chapter: 1, category: "สำนวน" },
+  { id: "1-020", japanese: "はじめまして", reading: "hajimemashite", kanji: "初めまして", thai: "ยินดีที่ได้รู้จัก (คำเกริ่นก่อนแนะนำตัวเมื่อเจอกันครั้งแรก)", chapter: 1, category: "สำนวน" },
+  { id: "1-021", japanese: "[どうぞ]よろしく[おねがいします]", reading: "[douzo] yoroshiku [onegaishimasu]", thai: "ขอฝากเนื้อฝากตัวด้วย (ใช้พูดเวลาจะจบการแนะนำตัวเอง)", chapter: 1, category: "สำนวน" },
   { id: "1-022", japanese: "しつれいですが", reading: "shitsurei desu ga", thai: "ขอโทษที่รบกวน (ก่อนถามเรื่องส่วนตัว)", chapter: 1, category: "สำนวน" },
   { id: "1-023", japanese: "おなまえは", reading: "onamae wa", thai: "ขอทราบชื่อด้วยครับ/ค่ะ", chapter: 1, category: "สำนวน" },
+  { id: "1-024", japanese: "〜さん", reading: "~san", thai: "คุณ ~, นาย ~, นาง ~, นางสาว ~ (ใช้ต่อท้ายชื่อคน แสดงความสุภาพ)", chapter: 1, category: "คำต่อท้าย" },
+  { id: "1-025", japanese: "〜ちゃん", reading: "~chan", thai: "หนู ~ (ใช้ต่อท้ายชื่อเด็ก แทนการใช้ 〜さん)", chapter: 1, category: "คำต่อท้าย" },
+  { id: "1-026", japanese: "〜じん", reading: "~jin", kanji: "〜人", thai: "ชาว ~, คน ~ (ใช้ต่อท้ายชื่อประเทศ หมายถึง 'สัญชาติ' เช่น アメリカじん = ชาวอเมริกัน)", chapter: 1, category: "คำต่อท้าย" },
+  { id: "1-027", japanese: "〜さい", reading: "~sai", kanji: "〜歳", thai: "อายุ ~ ปี (ตัวนับอายุ)", chapter: 1, category: "ตัวนับ" },
+  { id: "1-028", japanese: "おいくつ", reading: "oikutsu", thai: "อายุเท่าไร (วิธีพูดแบบสุภาพของ なんさい)", chapter: 1, category: "คำถาม" },
+  { id: "1-029", japanese: "〜から きました", reading: "~kara kimashita", kanji: "〜から 来ました", thai: "(ฉัน) มาจาก ~ (ประเทศบ้านเกิด)", chapter: 1, category: "สำนวน" },
+  { id: "1-030", japanese: "こちらは 〜さんです", reading: "kochira wa ~san desu", thai: "นี่คือคุณ ~ (ใช้เมื่อจะแนะนำใครให้ผู้อื่นรู้จัก)", chapter: 1, category: "สำนวน" },
+  { id: "1-031", japanese: "アメリカ", reading: "Amerika", thai: "สหรัฐอเมริกา", chapter: 1, category: "ประเทศ" },
+  { id: "1-032", japanese: "イギリス", reading: "Igirisu", thai: "อังกฤษ", chapter: 1, category: "ประเทศ" },
+  { id: "1-033", japanese: "インド", reading: "Indo", thai: "อินเดีย", chapter: 1, category: "ประเทศ" },
+  { id: "1-034", japanese: "インドネシア", reading: "Indoneshia", thai: "อินโดนีเซีย", chapter: 1, category: "ประเทศ" },
+  { id: "1-035", japanese: "かんこく", reading: "Kankoku", kanji: "韓国", thai: "เกาหลีใต้", chapter: 1, category: "ประเทศ" },
+  { id: "1-036", japanese: "タイ", reading: "Tai", thai: "ไทย", chapter: 1, category: "ประเทศ" },
+  { id: "1-037", japanese: "ちゅうごく", reading: "Chuugoku", kanji: "中国", thai: "จีน", chapter: 1, category: "ประเทศ" },
+  { id: "1-038", japanese: "ドイツ", reading: "Doitsu", thai: "เยอรมนี", chapter: 1, category: "ประเทศ" },
+  { id: "1-039", japanese: "にほん", reading: "Nihon", kanji: "日本", thai: "ญี่ปุ่น", chapter: 1, category: "ประเทศ" },
+  { id: "1-040", japanese: "ブラジル", reading: "Burajiru", thai: "บราซิล", chapter: 1, category: "ประเทศ" },
 
   // ===== บทที่ 2 =====
   { id: "2-001", japanese: "これ", reading: "kore", thai: "นี่, สิ่งนี้ (ใกล้ผู้พูด)", chapter: 2, category: "คำชี้" },
@@ -72,6 +89,15 @@ export const vocabulary: VocabItem[] = [
   { id: "2-035", japanese: "そうですか", reading: "sou desu ka", thai: "นั่นเหรอ (รับรู้ข้อมูลใหม่)", chapter: 2, category: "สำนวน" },
   { id: "2-036", japanese: "ちがいます", reading: "chigaimasu", thai: "ไม่ใช่, ผิด", chapter: 2, category: "คำตอบรับ" },
   { id: "2-037", japanese: "シーディー", reading: "shiidhii", kanji: "CD", thai: "ซีดี", chapter: 2, category: "สิ่งของ" },
+  { id: "2-038", japanese: "この〜", reading: "kono~", thai: "~ นี้, ~ ที่อยู่ตรงนี้ (ใกล้ผู้พูด)", chapter: 2, category: "คำชี้" },
+  { id: "2-039", japanese: "その〜", reading: "sono~", thai: "~ นั้น, ~ ที่อยู่ตรงนั้น (ใกล้ผู้ฟัง)", chapter: 2, category: "คำชี้" },
+  { id: "2-040", japanese: "あの〜", reading: "ano~", thai: "~ โน้น, ~ ที่อยู่ตรงโน้น (ไกลจากทั้งคู่)", chapter: 2, category: "คำชี้" },
+  { id: "2-041", japanese: "〜ご", reading: "~go", kanji: "〜語", thai: "ภาษา ~ (เช่น にほんご = ภาษาญี่ปุ่น)", chapter: 2, category: "ภาษา" },
+  { id: "2-042", japanese: "あのう", reading: "anou", thai: "เอ่อ, อ้า (ใช้เมื่อต้องการเรียกอีกฝ่ายด้วยความลังเลใจ)", chapter: 2, category: "สำนวน" },
+  { id: "2-043", japanese: "えっ", reading: "e", thai: "เอ๊ะ (เสียงที่เปล่งออกมาเมื่อได้ยินเรื่องที่ไม่คาดคิด แสดงความประหลาดใจ)", chapter: 2, category: "สำนวน" },
+  { id: "2-044", japanese: "あ", reading: "a", thai: "อ๊ะ (เสียงที่เปล่งออกมาเมื่อตระหนักถึงอะไรบางอย่าง)", chapter: 2, category: "สำนวน" },
+  { id: "2-045", japanese: "これからおせわになります", reading: "korekara osewa ni narimasu", kanji: "これからお世話になります", thai: "จากนี้ไปหวังว่าคงได้รับความกรุณา", chapter: 2, category: "สำนวน" },
+  { id: "2-046", japanese: "こちらこそどうぞよろしくおねがいします", reading: "kochira koso douzo yoroshiku onegai shimasu", kanji: "こちらこそどうぞよろしくお願いします", thai: "ผม/ดิฉันก็เช่นเดียวกัน, ขอฝากเนื้อฝากตัวเช่นกัน", chapter: 2, category: "สำนวน" },
 
   // ===== บทที่ 3 =====
   { id: "3-001", japanese: "ここ", reading: "koko", thai: "ที่นี่, ตรงนี้", chapter: 3, category: "สถานที่" },
@@ -111,6 +137,19 @@ export const vocabulary: VocabItem[] = [
   { id: "3-035", japanese: "いらっしゃいませ", reading: "irasshaimase", thai: "เชิญครับ/ค่ะ ยินดีต้อนรับ", chapter: 3, category: "สำนวน" },
   { id: "3-036", japanese: "みせてください", reading: "misete kudasai", thai: "ขอดู [~] หน่อย", chapter: 3, category: "สำนวน" },
   { id: "3-037", japanese: "ください", reading: "kudasai", thai: "ขอ [~]", chapter: 3, category: "สำนวน" },
+  { id: "3-038", japanese: "おてあらい", reading: "otearai", kanji: "お手洗い", thai: "ห้องน้ำ (วิธีพูดแบบสุภาพกว่า トイレ)", chapter: 3, category: "สถานที่" },
+  { id: "3-039", japanese: "〜かい(〜がい)", reading: "~kai (~gai)", kanji: "〜階", thai: "ชั้น ~ (ตัวนับชั้น เช่น いっかい = ชั้น 1, にかい = ชั้น 2)", chapter: 3, category: "ตัวนับ" },
+  { id: "3-040", japanese: "なんがい", reading: "nangai", kanji: "何階", thai: "ชั้นที่เท่าไร, ชั้นอะไร", chapter: 3, category: "คำถาม" },
+  { id: "3-041", japanese: "〜えん", reading: "~en", kanji: "〜円", thai: "~ เยน (หน่วยเงินญี่ปุ่น)", chapter: 3, category: "ตัวนับ" },
+  { id: "3-042", japanese: "どうも", reading: "doumo", thai: "ขอบคุณ (ใช้แบบสั้นๆ ไม่เป็นทางการ)", chapter: 3, category: "สำนวน" },
+  { id: "3-043", japanese: "じゃ", reading: "ja", thai: "เอาละ, งั้น, ถ้าอย่างนั้น (ใช้ก่อนจบบทสนทนา)", chapter: 3, category: "สำนวน" },
+  { id: "3-044", japanese: "イタリア", reading: "itaria", thai: "อิตาลี", chapter: 3, category: "ประเทศ" },
+  { id: "3-045", japanese: "スイス", reading: "suisu", thai: "สวิตเซอร์แลนด์", chapter: 3, category: "ประเทศ" },
+  { id: "3-046", japanese: "フランス", reading: "furansu", thai: "ฝรั่งเศส", chapter: 3, category: "ประเทศ" },
+  { id: "3-047", japanese: "ジャカルタ", reading: "jakaruta", thai: "จาการ์ตา", chapter: 3, category: "เมือง" },
+  { id: "3-048", japanese: "バンコク", reading: "bankoku", thai: "กรุงเทพฯ", chapter: 3, category: "เมือง" },
+  { id: "3-049", japanese: "ベルリン", reading: "berurin", thai: "เบอร์ลิน", chapter: 3, category: "เมือง" },
+  { id: "3-050", japanese: "しんおおさか", reading: "shin osaka", kanji: "新大阪", thai: "ชื่อสถานีรถไฟในจังหวัดโอซาก้า", chapter: 3, category: "สถานที่ญี่ปุ่น" },
 ];
 
 export const numberPractice = [
@@ -142,6 +181,15 @@ export const numberPractice = [
   { japanese: "はっせん", reading: "hassen", thai: "8,000", number: 8000 },
   { japanese: "いちまん", reading: "ichiman", thai: "10,000", number: 10000 },
 ];
+
+export const numberVocab: VocabItem[] = numberPractice.map((n, i) => ({
+  id: `num-${String(i).padStart(3, "0")}`,
+  japanese: n.japanese.split(" / ")[0],
+  reading: n.reading.split(" / ")[0],
+  thai: n.thai,
+  chapter: 0,
+  category: "ตัวเลข",
+}));
 
 export const greetings = [
   { japanese: "おはようございます", reading: "ohayou gozaimasu", thai: "สวัสดีครับ/ค่ะ (ตอนเช้า)" },

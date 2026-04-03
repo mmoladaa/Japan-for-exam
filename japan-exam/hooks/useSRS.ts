@@ -14,8 +14,13 @@ export interface SRSState {
 }
 
 const LEVEL_INTERVALS = [0, 1, 3, 7, 14, 30]; // วัน
+export const CRAM_INTERVALS = [0, 5, 15, 30, 60, 120]; // นาที (สำหรับ session 2 ชม)
 
-function getIntervalMs(level: number): number {
+function getIntervalMs(level: number, cram = false): number {
+  if (cram) {
+    const minutes = CRAM_INTERVALS[Math.min(level, 5)];
+    return minutes * 60 * 1000;
+  }
   const days = LEVEL_INTERVALS[Math.min(level, 5)];
   return days * 24 * 60 * 60 * 1000;
 }
@@ -68,7 +73,7 @@ export function useSRS(storageKey: string = "japan-srs") {
   );
 
   const updateCard = useCallback(
-    (id: string, correct: boolean) => {
+    (id: string, correct: boolean, cram = false) => {
       const card = getCard(id);
       const newLevel = correct
         ? Math.min(card.level + 1, 5)
@@ -76,7 +81,7 @@ export function useSRS(storageKey: string = "japan-srs") {
       const newCard: SRSCard = {
         ...card,
         level: newLevel,
-        nextReview: Date.now() + getIntervalMs(newLevel),
+        nextReview: Date.now() + getIntervalMs(newLevel, cram),
         totalReviews: card.totalReviews + 1,
         correctCount: card.correctCount + (correct ? 1 : 0),
       };

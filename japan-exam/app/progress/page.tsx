@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSRS } from "@/hooks/useSRS";
 import { vocabulary } from "@/data/vocabulary";
+import { grammarPatterns } from "@/data/quizData";
 
 const allIds = vocabulary.map((v) => v.id);
 
@@ -16,24 +17,57 @@ const LEVEL_COLORS = [
 ];
 
 export default function ProgressPage() {
-  const { getStats, getCard, resetAll, isLoaded, state } = useSRS();
-  const [stats, setStats] = useState({ mastered: 0, learning: 0, notStarted: 0, due: 0, total: 0 });
-  const [chapterStats, setChapterStats] = useState<Record<number, ReturnType<typeof getStats>>>({});
+  const { getStats, getCard, resetAll, isLoaded } = useSRS();
+  const stats = useMemo(
+    () => isLoaded ? getStats(allIds) : { mastered: 0, learning: 0, notStarted: 0, due: 0, total: 0 },
+    [isLoaded, getStats]
+  );
+  const chapterStats = useMemo(() => isLoaded ? {
+    1: getStats(vocabulary.filter((v) => v.chapter === 1).map((v) => v.id)),
+    2: getStats(vocabulary.filter((v) => v.chapter === 2).map((v) => v.id)),
+    3: getStats(vocabulary.filter((v) => v.chapter === 3).map((v) => v.id)),
+  } : {}, [isLoaded, getStats]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeChapter, setActiveChapter] = useState<number>(0);
-
-  useEffect(() => {
-    if (isLoaded) {
-      setStats(getStats(allIds));
-      setChapterStats({
-        1: getStats(vocabulary.filter((v) => v.chapter === 1).map((v) => v.id)),
-        2: getStats(vocabulary.filter((v) => v.chapter === 2).map((v) => v.id)),
-        3: getStats(vocabulary.filter((v) => v.chapter === 3).map((v) => v.id)),
-      });
+  const [grammarDone] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("japan-grammar-progress");
+        if (saved) return JSON.parse(saved).done ?? 0;
+      } catch { /* ignore */ }
     }
-  }, [isLoaded, getStats, state]);
+    return 0;
+  });
+  const [grammarBest] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("japan-grammar-progress");
+        if (saved) return JSON.parse(saved).best ?? 0;
+      } catch { /* ignore */ }
+    }
+    return 0;
+  });
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("japan-vocab-exclude");
+        if (saved) return new Set<string>(JSON.parse(saved));
+      } catch { /* ignore */ }
+    }
+    return new Set<string>();
+  });
+  const [editMode, setEditMode] = useState(false);
 
-  const overallPct = stats.total > 0 ? Math.round(((stats.mastered + stats.learning) / stats.total) * 100) : 0;
+  const toggleExclude = (id: string) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try { localStorage.setItem("japan-vocab-exclude", JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   const masteredPct = stats.total > 0 ? Math.round((stats.mastered / stats.total) * 100) : 0;
 
   // Level distribution
@@ -169,10 +203,52 @@ export default function ProgressPage() {
         </div>
       </div>
 
+      {/* Grammar progress */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-gray-800">ความก้าวหน้าไวยากรณ์</h2>
+          {grammarDone > 0 && (
+            <span className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full">
+              ทำแล้ว {grammarDone} ครั้ง · Best {grammarBest}%
+            </span>
+          )}
+        </div>
+        <div className="space-y-2">
+          {grammarPatterns.map((p) => (
+            <div key={p.id} className="flex items-start gap-3 p-2 rounded-xl bg-gray-50">
+              <span className={`mt-0.5 text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-medium ${grammarDone > 0 ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500"}`}>
+                {grammarDone > 0 ? "ฝึกแล้ว" : "ยังไม่ฝึก"}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-jp text-sm font-medium text-gray-800">{p.pattern}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{p.exampleThai}</p>
+              </div>
+              <span className="text-xs text-gray-300 bg-gray-100 px-1.5 py-0.5 rounded-full">บท{p.chapter}</span>
+            </div>
+          ))}
+        </div>
+        {grammarDone === 0 && (
+          <p className="text-xs text-gray-400 text-center mt-3">ไปที่ แบบทดสอบ → เติมคำในช่องว่าง เพื่อเริ่มฝึกไวยากรณ์</p>
+        )}
+      </div>
+
       {/* Vocabulary table */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800 mb-2">รายการคำศัพท์</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-semibold text-gray-800">รายการคำศัพท์</h2>
+            <button
+              onClick={() => setEditMode((v) => !v)}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${editMode ? "bg-red-600 text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              {editMode ? "✓ เสร็จแล้ว" : "เลือกคำ ☑"}
+            </button>
+          </div>
+          {editMode && (
+            <p className="text-xs text-gray-400 mb-2">
+              กดเพื่อ <span className="text-red-500">ตัดออก</span> จาก Flashcard · {excludedIds.size > 0 ? `ตัดออก ${excludedIds.size} คำ` : "ยังไม่ตัดคำใดออก"}
+            </p>
+          )}
           <div className="flex bg-gray-100 rounded-lg p-1">
             {([0, 1, 2, 3] as const).map((ch) => (
               <button
@@ -188,19 +264,44 @@ export default function ProgressPage() {
         <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
           {filteredVocab.map((vocab) => {
             const card = getCard(vocab.id);
+            const excluded = excludedIds.has(vocab.id);
             return (
-              <div key={vocab.id} className="flex items-center gap-3 px-4 py-2.5">
+              <div
+                key={vocab.id}
+                className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${editMode ? "cursor-pointer active:bg-gray-50" : ""} ${excluded ? "opacity-40" : ""}`}
+                onClick={editMode ? () => toggleExclude(vocab.id) : undefined}
+              >
+                {editMode && (
+                  <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${excluded ? "border-red-400 bg-red-50" : "border-green-400 bg-green-50"}`}>
+                    {excluded ? <span className="text-red-500 text-xs">✕</span> : <span className="text-green-500 text-xs">✓</span>}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-jp text-sm font-medium text-gray-900">{vocab.japanese}</p>
+                  <p className={`font-jp text-sm font-medium ${excluded ? "line-through text-gray-400" : "text-gray-900"}`}>{vocab.japanese}</p>
                   <p className="text-xs text-gray-400 truncate">{vocab.thai}</p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${LEVEL_COLORS[card.level]}`}>
-                  {LEVEL_LABELS[card.level]}
-                </span>
+                {!editMode && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${LEVEL_COLORS[card.level]}`}>
+                    {LEVEL_LABELS[card.level]}
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
+        {editMode && excludedIds.size > 0 && (
+          <div className="p-3 border-t border-gray-100">
+            <button
+              onClick={() => {
+                setExcludedIds(new Set());
+                try { localStorage.removeItem("japan-vocab-exclude"); } catch { /* ignore */ }
+              }}
+              className="w-full text-xs text-gray-400 py-2 rounded-xl border border-dashed border-gray-200 hover:text-red-400 hover:border-red-200 transition-colors"
+            >
+              เอาคำที่ตัดออกทั้งหมดกลับมา ({excludedIds.size} คำ)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Reset */}
