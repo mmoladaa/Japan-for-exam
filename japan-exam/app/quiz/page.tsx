@@ -143,7 +143,6 @@ export default function QuizPage() {
     if (currentIdx + 1 >= questions.length) {
       // Save grammar progress if in grammar mode
       if (mode === "grammar") {
-        const finalCorrect = result.correct + (selected === currentQ?.answer ? 0 : 0); // already counted
         const pct = result.total > 0 ? Math.round((result.correct / result.total) * 100) : 0;
         const newDone = grammarDone + 1;
         const newBest = Math.max(grammarBest, pct);
